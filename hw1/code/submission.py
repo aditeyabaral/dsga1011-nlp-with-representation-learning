@@ -179,8 +179,8 @@ def cooccur_to_embedding(co_mat, embed_size=50):
         embeddings : np.array
             vocab_size x embed_size
     """
-    u, s, vh = np.linalg.svd(co_mat, full_matrices=True)
-    embeddings = np.dot(u[:, :embed_size], np.diag(s[:embed_size]))
+    u, s, vt = np.linalg.svd(co_mat, full_matrices=True, hermitian=True)
+    embeddings = u[:, :embed_size] @ np.diag(s[:embed_size])
     return embeddings
 
 
@@ -211,7 +211,7 @@ def top_k_similar(word_ind, embeddings, word2ind, k=10, metric="dot"):
     }
     similarity_metric = metrics[metric]
     similarity_scores = np.array(
-        [similarity_metric(word_embedding, embeddings[i]) for i in range(len(embeddings))]
+        [similarity_metric(word_embedding, embeddings[i]) for i in range(len(embeddings)) if i != word_ind]
     )
     top_k_word_indices = np.argsort(similarity_scores)[::-1][:k]
     top_k_words = [ind2word[i] for i in top_k_word_indices]
