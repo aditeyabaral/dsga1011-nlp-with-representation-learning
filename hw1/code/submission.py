@@ -21,10 +21,13 @@ def extract_unigram_features(ex):
     Example:
         "I love it", "I hate it" --> {"I":2, "it":2, "hate":1, "love":1}
     """
-    unigram_features = dict()
+    unigram_features = (
+        dict()
+    )  # a dictionary of BoW features for each token in the hypothesis and the premise
     premise = ex["sentence1"]
     hypothesis = ex["sentence2"]
     for token in premise + hypothesis:
+        # increment the count of the token in the dictionary
         unigram_features[token] = unigram_features.get(token, 0) + 1
     return unigram_features
 
@@ -43,11 +46,6 @@ def extract_custom_features(ex):
         "I love it", "I hate it" --> {"love":1, "hate":1}
     """
     custom_features = dict()
-    try:
-        stopwords = nltk.corpus.stopwords.words("english")
-    except LookupError:
-        nltk.download("stopwords")
-        stopwords = nltk.corpus.stopwords.words("english")
 
     premise = ex["sentence1"]
     hypothesis = ex["sentence2"]
@@ -55,26 +53,20 @@ def extract_custom_features(ex):
     total_tokens = len(combined)
 
     for token in combined:
+        # increment the count of the token in the dictionary
         custom_features[token] = custom_features.get(token, 0) + 1
+
     for token in custom_features:
+        # we can scale the feature by the following two scales
+        # scale_1: log(number of sentences [= 2 in this case] / number of sentences containing the token)
+        # scale_2: log(inverse of the fraction of the total number of tokens in the combined sentences that are the token)
+        # intuition: we want the weight of a token to be maximum when it appears in the fewest number of sentences and
+        # it appears as few times as possible whenever it appears in a sentence. This is because the more unique a token
+        # is, the more it can help in distinguishing the sentences.
         scale_1 = np.log(2 / (int(token in premise) + int(token in hypothesis)))
         scale_2 = np.log((total_tokens + 1) / (combined.count(token) + 1))
         custom_features[token] *= scale_1 * scale_2
     return custom_features
-
-
-def compute_vocabulary(features):
-    """Compute the vocabulary of the data.
-    Parameters:
-        features : [{str: int}]
-            A list of feature dictionaries.
-    Returns:
-        A list of words (str)
-    """
-    vocabulary = set()
-    for feature in features:
-        vocabulary.update(feature.keys())
-    return list(vocabulary)
 
 
 def learn_predictor(
@@ -95,33 +87,49 @@ def learn_predictor(
         weights : dict
             feature name (str) : weight (float)
     """
+    # extract features from the training and validation data
     train_features = list(map(feature_extractor, train_data))
     valid_features = list(map(feature_extractor, valid_data))
-    vocabulary = compute_vocabulary(train_features)
+
+    # create a vocabulary of all the features
+    vocabulary = set()
+    for feature in train_features:
+        vocabulary.update(feature.keys())
+
+    # initialize the weights of the features. We opt for zero initialization here.
     weights = {word: 0.0 for word in vocabulary}
     total_examples = len(train_data)
 
     for epoch in range(num_epochs):
+        # initialize the loss for the training and validation data
         training_loss = 0.0
         validation_loss = 0.0
         for i, ex in enumerate(train_data):
             label = ex["gold_label"]
+            # predict the label using the weights
             prediction = predict(weights, train_features[i])
+            # compute the loss and the gradient
             loss = -(label * np.log(prediction) + (1 - label) * np.log(1 - prediction))
             gradient = (prediction - label) * np.array(list(train_features[i].values()))
             for idx, word in enumerate(train_features[i]):
+                # update the weights using the gradient (SGD)
                 weights[word] -= learning_rate * gradient[idx]
             training_loss += loss
+        # compute the average training loss
         training_loss /= total_examples
 
         for i, ex in enumerate(valid_data):
             label = ex["gold_label"]
+            # predict the label using the weights
             prediction = predict(weights, valid_features[i])
+            # compute the loss
             validation_loss += -(
                 label * np.log(prediction) + (1 - label) * np.log(1 - prediction)
             )
+        # compute the average validation loss
         validation_loss /= len(valid_data)
 
+        # print the training and validation loss for each epoch
         print(
             f"Epoch {epoch}: training loss = {training_loss}, validation loss = {validation_loss}"
         )
@@ -145,11 +153,15 @@ def count_cooccur_matrix(tokens, window_size=4):
     """
     vocabulary = set(tokens)
     vocabulary_size = len(vocabulary)
+    # compute a dictionary mapping words to indices
     word2ind = {word: idx for idx, word in enumerate(vocabulary)}
+    # initialize the co-occurrence matrix
     co_mat = np.zeros((vocabulary_size, vocabulary_size))
     for i, token in enumerate(tokens):
+        # the window size comprises tokens in the range [i - window_size, i + window_size], excluding the token itself
         for j in range(max(i - window_size, 0), min(i + window_size + 1, len(tokens))):
             if i != j:
+                # increment the count of the co-occurring words
                 co_mat[word2ind[token]][word2ind[tokens[j]]] += 1
 
     return word2ind, co_mat
@@ -165,7 +177,10 @@ def cooccur_to_embedding(co_mat, embed_size=50):
         embeddings : np.array
             vocab_size x embed_size
     """
+    # compute the SVD of the co-occurrence matrix. We opt for the full SVD here to obtain both U and S matrices.
+    # we set hermitian=True because the matrix is real and symmetric (since a co-occurrence matrix is always symmetric)
     u, s, vt = np.linalg.svd(co_mat, full_matrices=True, hermitian=True)
+    # we take only the first embed_size columns of U and multiply it with a diagonal matrix of the first embed_size singular values
     embeddings = u[:, :embed_size] @ np.diag(s[:embed_size])
     return embeddings
 
@@ -187,7 +202,9 @@ def top_k_similar(word_ind, embeddings, word2ind, k=10, metric="dot"):
     Returns:
         topk-words : [str]
     """
+    # compute a dictionary mapping indices to words
     ind2word = {ind: word for word, ind in word2ind.items()}
+    # normalize the embeddings for quicker computation
     embeddings /= np.linalg.norm(embeddings, axis=1, keepdims=True)
     query_word_embedding = embeddings[word_ind]
     similarity = lambda v: (
@@ -196,6 +213,9 @@ def top_k_similar(word_ind, embeddings, word2ind, k=10, metric="dot"):
         else np.dot(query_word_embedding, v)
         / (np.linalg.norm(query_word_embedding) * np.linalg.norm(v))
     )
+    # compute the similarity scores of the query word with all the words
     similarity_scores = np.array(list(map(similarity, embeddings)))
+    # sort the similarity scores in descending order and return the top k words
+    # we exclude the query word itself by starting the slicing from the second element
     top_k_indices = similarity_scores.argsort()[::-1][1 : k + 1]
     return list(map(lambda x: ind2word[x], top_k_indices))
