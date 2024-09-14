@@ -21,7 +21,7 @@ def extract_unigram_features(ex):
     Example:
         "I love it", "I hate it" --> {"I":2, "it":2, "hate":1, "love":1}
     """
-    unigram_features = dict()  # a dictionary that maps tokens to their frequency
+    unigram_features = dict()
     premise = ex["sentence1"]
     hypothesis = ex["sentence2"]
     for token in premise + hypothesis:
@@ -51,20 +51,6 @@ def extract_custom_features(ex):
 
     premise = ex["sentence1"]
     hypothesis = ex["sentence2"]
-
-    # premise = list(filter(lambda x: x not in stopwords, list(map(str.lower, ex["sentence1"]))))
-    # hypothesis = list(filter(lambda x: x not in stopwords, list(map(str.lower, ex["sentence1"]))))
-
-    # premise = list(filter(lambda x: x not in stopwords, ex["sentence1"]))
-    # hypothesis = list(filter(lambda x: x not in stopwords, ex["sentence2"]))
-
-    # premise = list(map(str.lower, ex["sentence1"]))
-    # hypothesis = list(map(str.lower, ex["sentence2"]))
-
-    # n = 3
-    # premise = list(nltk.ngrams(premise, n))
-    # hypothesis = list(nltk.ngrams(hypothesis, n))
-
     combined = premise + hypothesis
     total_tokens = len(combined)
 
@@ -201,19 +187,15 @@ def top_k_similar(word_ind, embeddings, word2ind, k=10, metric="dot"):
     Returns:
         topk-words : [str]
     """
-    ind2word = {idx: word for word, idx in word2ind.items()}
-    word_embedding = embeddings[word_ind]
-    metrics = {
-        "dot": lambda embedding1, embedding2: np.dot(embedding1, embedding2),
-        "cosine": lambda embedding1, embedding2: np.dot(embedding1, embedding2) / (
-            np.linalg.norm(embedding1) * np.linalg.norm(embedding2)
-        ),
-    }
-    similarity_metric = metrics[metric]
-    similarity_scores = np.array(
-        [similarity_metric(word_embedding, embeddings[i]) for i in range(len(embeddings)) if i != word_ind]
+    ind2word = {ind: word for word, ind in word2ind.items()}
+    embeddings /= np.linalg.norm(embeddings, axis=1, keepdims=True)
+    query_word_embedding = embeddings[word_ind]
+    similarity = lambda v: (
+        np.dot(query_word_embedding, v)
+        if metric == "dot"
+        else np.dot(query_word_embedding, v)
+        / (np.linalg.norm(query_word_embedding) * np.linalg.norm(v))
     )
-    top_k_word_indices = np.argsort(similarity_scores)[::-1][:k]
-    top_k_words = [ind2word[i] for i in top_k_word_indices]
-    return top_k_words
-
+    similarity_scores = np.array(list(map(similarity, embeddings)))
+    top_k_indices = similarity_scores.argsort()[::-1][1 : k + 1]
+    return list(map(lambda x: ind2word[x], top_k_indices))
