@@ -207,14 +207,11 @@ def top_k_similar(word_ind, embeddings, word2ind, k=10, metric="dot"):
     # normalize the embeddings for quicker computation
     embeddings /= np.linalg.norm(embeddings, axis=1, keepdims=True)
     query_word_embedding = embeddings[word_ind]
-    similarity = lambda v: (
-        np.dot(query_word_embedding, v)
-        if metric == "dot"
-        else np.dot(query_word_embedding, v)
-        / (np.linalg.norm(query_word_embedding) * np.linalg.norm(v))
-    )
     # compute the similarity scores of the query word with all the words
-    similarity_scores = np.array(list(map(similarity, embeddings)))
+    # since we have normalized the embeddings, the cosine similarity is equivalent to the dot product
+    similarity_scores = np.array(
+        list(map(lambda v: np.dot(query_word_embedding, v), embeddings))
+    )
     # sort the similarity scores in descending order and return the top k words
     # we exclude the query word itself by starting the slicing from the second element
     top_k_indices = similarity_scores.argsort()[::-1][1 : k + 1]
