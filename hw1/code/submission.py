@@ -33,7 +33,7 @@ def extract_unigram_features(ex):
 
 def extract_custom_features(ex):
     """Returns features for a given pair of hypothesis and premise by performing the following:
-    1. Extracting the unigrams in the hypothesis and the premise.
+    1. Extracting the unigrams and bigrams in the hypothesis and the premise.
     2. Scaling the features by the following two scales:
         - scale_1: log(number of sentences [= 2 in this case] / number of sentences containing the token)
         - scale_2: log(inverse of the fraction of the total number of tokens in the combined sentences that are the token)
@@ -46,14 +46,24 @@ def extract_custom_features(ex):
         A dictionary of features for x.
 
     Example:
-        "I love it", "I hate it" --> {"I": 2*log(2/2)*log(7/3), "it": 2*log(2/2)*log(7/3), "hate": 1*log(2/1)*log(7/1), "love": 1*log(2/1)*log(7/1)}
-        Final feature set: {"I": 0, "it": 0, "hate": 0.2543, "love": 0.2543}
+        "I love it", "I hate it" --> {
+            "I": 2 * log(2/3) * log(11/2.001),
+            "love": 1 * log(2/2) * log(11/1.001),
+            "it": 2 * log(2/3) * log(11/2.001),
+            "hate": 1 * log(2/2) * log(11/1.001),
+            ("I", "love"): 1 * log(2/1) * log(11/1.001),
+            ("love", "it"): 1 * log(2/1) * log(11/1.001),
+            ("it", "I"): 1 * log(2/1) * log(11/1.001),
+            ("I", "hate"): 1 * log(2/1) * log(11/1.001),
+            ("hate", "it"): 1 * log(2/1) * log(11/1.001)
+        }
     """
     custom_features = dict()
 
     premise = ex["sentence1"]
     hypothesis = ex["sentence2"]
     combined = premise + hypothesis
+    combined = combined + list(nltk.ngrams(combined, 2))
     total_tokens = len(combined)
 
     for token in combined:
@@ -67,8 +77,10 @@ def extract_custom_features(ex):
         # intuition: we want the weight of a token to be maximum when it appears in the fewest number of sentences and
         # it appears as few times as possible whenever it appears in a sentence. This is because the more unique a token
         # is, the more it can help in distinguishing the sentences.
-        scale_1 = np.log(2 / (int(token in premise) + int(token in hypothesis)))
-        scale_2 = np.log((total_tokens + 1) / (combined.count(token) + 1))
+        scale_1 = np.log(2 / (int(token in premise) + int(token in hypothesis) + 1))
+        scale_2 = np.log(
+            (total_tokens) / (combined.count(token) + 1e-3)
+        )  # 1e-3 is added to avoid division by zero
         custom_features[token] *= scale_1 * scale_2
     return custom_features
 
@@ -102,7 +114,8 @@ def learn_predictor(
 
     # initialize the weights of the features. We opt for zero initialization here.
     weights = {word: 0.0 for word in vocabulary}
-    total_examples = len(train_data)
+    total_train_examples = len(train_data)
+    total_valid_examples = len(valid_data)
 
     for epoch in range(num_epochs):
         # initialize the loss for the training and validation data
@@ -120,7 +133,7 @@ def learn_predictor(
                 weights[word] -= learning_rate * gradient[idx]
             training_loss += loss
         # compute the average training loss
-        training_loss /= total_examples
+        training_loss /= total_train_examples
 
         for i, ex in enumerate(valid_data):
             label = ex["gold_label"]
@@ -131,7 +144,7 @@ def learn_predictor(
                 label * np.log(prediction) + (1 - label) * np.log(1 - prediction)
             )
         # compute the average validation loss
-        validation_loss /= len(valid_data)
+        validation_loss /= total_valid_examples
 
         # print the training and validation loss for each epoch
         print(
