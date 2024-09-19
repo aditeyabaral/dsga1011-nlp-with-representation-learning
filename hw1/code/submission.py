@@ -21,9 +21,8 @@ def extract_unigram_features(ex):
     Example:
         "I love it", "I hate it" --> {"I":2, "it":2, "hate":1, "love":1}
     """
-    unigram_features = (
-        dict()
-    )  # a dictionary of BoW features for each token in the hypothesis and the premise
+    # a dictionary of BoW features for each token in the hypothesis and the premise
+    unigram_features = dict()
     premise = ex["sentence1"]
     hypothesis = ex["sentence2"]
     for token in premise + hypothesis:
@@ -34,7 +33,11 @@ def extract_unigram_features(ex):
 
 def extract_custom_features(ex):
     """Returns features for a given pair of hypothesis and premise by performing the following:
-    1. Removes stop words from both sentences.
+    1. Extracting the unigrams in the hypothesis and the premise.
+    2. Scaling the features by the following two scales:
+        - scale_1: log(number of sentences [= 2 in this case] / number of sentences containing the token)
+        - scale_2: log(inverse of the fraction of the total number of tokens in the combined sentences that are the token)
+    3. Multiplying the features by the two scales.
 
     Parameters:
         ex : dict
@@ -43,7 +46,8 @@ def extract_custom_features(ex):
         A dictionary of features for x.
 
     Example:
-        "I love it", "I hate it" --> {"love":1, "hate":1}
+        "I love it", "I hate it" --> {"I": 2*log(2/2)*log(7/3), "it": 2*log(2/2)*log(7/3), "hate": 1*log(2/1)*log(7/1), "love": 1*log(2/1)*log(7/1)}
+        Final feature set: {"I": 0, "it": 0, "hate": 0.2543, "love": 0.2543}
     """
     custom_features = dict()
 
@@ -57,7 +61,7 @@ def extract_custom_features(ex):
         custom_features[token] = custom_features.get(token, 0) + 1
 
     for token in custom_features:
-        # we can scale the feature by the following two scales
+        # we can scale the feature by multiplying the following two scales
         # scale_1: log(number of sentences [= 2 in this case] / number of sentences containing the token)
         # scale_2: log(inverse of the fraction of the total number of tokens in the combined sentences that are the token)
         # intuition: we want the weight of a token to be maximum when it appears in the fewest number of sentences and
