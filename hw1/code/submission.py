@@ -31,6 +31,22 @@ def extract_unigram_features(ex):
     return unigram_features
 
 
+def ngrams(tokens, n):
+    """Return n-grams for a given list of tokens.
+    Parameters:
+        tokens : [str]
+        n : int
+    Returns:
+        A list of n-grams
+    Example:
+        n: 2, tokens: ["I", "love", "it"] --> [("I", "love"), ("love", "it")]
+    """
+    ngrams = list()
+    for i in range(len(tokens) - n + 1):
+        ngrams.append(tuple(tokens[i : i + n]))
+    return ngrams
+
+
 def extract_custom_features(ex):
     """Returns features for a given pair of hypothesis and premise by performing the following:
     1. Extracting the unigrams and bigrams in the hypothesis and the premise.
@@ -61,8 +77,8 @@ def extract_custom_features(ex):
 
     premise = ex["sentence1"]
     hypothesis = ex["sentence2"]
-    premise_bigrams = premise + list(nltk.ngrams(premise, 2))
-    hypothesis_bigrams = hypothesis + list(nltk.ngrams(hypothesis, 2))
+    premise_bigrams = premise + ngrams(premise, 2)
+    hypothesis_bigrams = hypothesis + ngrams(hypothesis, 2)
     combined = premise_bigrams + hypothesis_bigrams
 
     for token in combined:
