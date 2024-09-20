@@ -35,8 +35,8 @@ def extract_custom_features(ex):
     """Returns features for a given pair of hypothesis and premise by performing the following:
     1. Extracting the unigrams and bigrams in the hypothesis and the premise.
     2. Scaling the features by the following two scales:
-        - scale_1: log(number of sentences [= 2 in this case] / number of sentences containing the token)
-        - scale_2: log(inverse of the fraction of the total number of tokens in the combined sentences that are the token)
+        - sentence frequency: log(number of sentences [= 2 in this case] / number of sentences containing the token)
+        - token frequency: log(inverse of the fraction of the total number of tokens in the combined sentences that are the token)
     3. Multiplying the features by the two scales.
 
     Parameters:
@@ -47,41 +47,50 @@ def extract_custom_features(ex):
 
     Example:
         "I love it", "I hate it" --> {
-            "I": 2 * log(2/3) * log(11/2.001),
-            "love": 1 * log(2/2) * log(11/1.001),
-            "it": 2 * log(2/3) * log(11/2.001),
-            "hate": 1 * log(2/2) * log(11/1.001),
-            ("I", "love"): 1 * log(2/1) * log(11/1.001),
-            ("love", "it"): 1 * log(2/1) * log(11/1.001),
-            ("it", "I"): 1 * log(2/1) * log(11/1.001),
-            ("I", "hate"): 1 * log(2/1) * log(11/1.001),
-            ("hate", "it"): 1 * log(2/1) * log(11/1.001)
+            "I": 2 * log(2/3) * log(10/2.001) = -1.304
+            "it": 2 * log(2/3) * log(10/2.001) = -1.304
+            "love": 1 * log(2/2) * log(10/1.001) = 0.0
+            "hate": 1 * log(2/2) * log(10/1.001) = 0.0
+            ("I", "love"): 1 * log(2/1) * log(10/1.001) = 1.595
+            ("love", "it"): 1 * log(2/1) * log(10/1.001) = 1.595
+            ("I", "hate"): 1 * log(2/1) * log(10/1.001) = 1.595
+            ("hate", "it"): 1 * log(2/1) * log(10/1.001) = 1.595
         }
     """
     custom_features = dict()
 
     premise = ex["sentence1"]
+    premise_bigrams = premise + list(nltk.ngrams(premise, 2))
     hypothesis = ex["sentence2"]
+    hypothesis_bigrams = hypothesis + list(nltk.ngrams(hypothesis, 2))
+
     combined = premise + hypothesis
     combined = combined + list(nltk.ngrams(combined, 2))
-    total_tokens = len(combined)
 
     for token in combined:
         # increment the count of the token in the dictionary
-        custom_features[token] = custom_features.get(token, 0) + 1
+        if (
+            token in premise
+            or token in hypothesis
+            or token in premise_bigrams
+            or token in hypothesis_bigrams
+        ):
+            custom_features[token] = custom_features.get(token, 0) + 1
 
+    total_tokens = len(premise_bigrams) + len(hypothesis_bigrams)
     for token in custom_features:
         # we can scale the feature by multiplying the following two scales
-        # scale_1: log(number of sentences [= 2 in this case] / number of sentences containing the token)
-        # scale_2: log(inverse of the fraction of the total number of tokens in the combined sentences that are the token)
         # intuition: we want the weight of a token to be maximum when it appears in the fewest number of sentences and
-        # it appears as few times as possible whenever it appears in a sentence. This is because the more unique a token
-        # is, the more it can help in distinguishing the sentences.
-        scale_1 = np.log(2 / (int(token in premise) + int(token in hypothesis) + 1))
-        scale_2 = np.log(
+        # it appears as few times as possible whenever it appears in a sentence. This is because the more unique a token,
+        # the more it can help in distinguishing the sentences.
+        sentence_frequency = np.log(
+            2 / (int(token in premise) + int(token in hypothesis) + 1)
+        )
+        # +1 is added to avoid division by zero
+        token_frequency = np.log(
             (total_tokens) / (combined.count(token) + 1e-3)
-        )  # 1e-3 is added to avoid division by zero
-        custom_features[token] *= scale_1 * scale_2
+        )  # +1e-3 is added to avoid division by zero
+        custom_features[token] *= sentence_frequency * token_frequency
     return custom_features
 
 
