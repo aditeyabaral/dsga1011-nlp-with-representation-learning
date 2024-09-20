@@ -43,4 +43,4 @@ def test_custom():
 
 
 test_unigram()  # train error=0.251, valid error=0.36
-test_custom()  # train error=0.0163, valid error=0.3513
+test_custom()  # train error=0.0152, valid error=0.3404

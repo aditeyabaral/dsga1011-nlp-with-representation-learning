@@ -47,49 +47,39 @@ def extract_custom_features(ex):
 
     Example:
         "I love it", "I hate it" --> {
-            "I": 2 * log(2/3) * log(10/2.001) = -1.304
-            "it": 2 * log(2/3) * log(10/2.001) = -1.304
-            "love": 1 * log(2/2) * log(10/1.001) = 0.0
-            "hate": 1 * log(2/2) * log(10/1.001) = 0.0
-            ("I", "love"): 1 * log(2/1) * log(10/1.001) = 1.595
-            ("love", "it"): 1 * log(2/1) * log(10/1.001) = 1.595
-            ("I", "hate"): 1 * log(2/1) * log(10/1.001) = 1.595
-            ("hate", "it"): 1 * log(2/1) * log(10/1.001) = 1.595
+            "I": 2 * log(2/2.001) * log(10/2.001) = -0.001
+            "it": 2 * log(2/2.001) * log(10/2.001) = -0.001
+            "love": 1 * log(2/1.001) * log(10/1.001) = 1.5930
+            "hate": 1 * log(2/1.001) * log(10/1.001) = 1.593
+            ("I", "love"): 1 * log(2/1.001) * log(10/1.001) = 1.593
+            ("love", "it"): 1 * log(2/1.001) * log(10/1.001) = 1.593
+            ("I", "hate"): 1 * log(2/1.001) * log(10/1.001) = 1.593
+            ("hate", "it"): 1 * log(2/1.001) * log(10/1.001) = 1.593
         }
     """
     custom_features = dict()
 
     premise = ex["sentence1"]
-    premise_bigrams = premise + list(nltk.ngrams(premise, 2))
     hypothesis = ex["sentence2"]
+    premise_bigrams = premise + list(nltk.ngrams(premise, 2))
     hypothesis_bigrams = hypothesis + list(nltk.ngrams(hypothesis, 2))
-
-    combined = premise + hypothesis
-    combined = combined + list(nltk.ngrams(combined, 2))
+    combined = premise_bigrams + hypothesis_bigrams
 
     for token in combined:
         # increment the count of the token in the dictionary
-        if (
-            token in premise
-            or token in hypothesis
-            or token in premise_bigrams
-            or token in hypothesis_bigrams
-        ):
-            custom_features[token] = custom_features.get(token, 0) + 1
+        custom_features[token] = custom_features.get(token, 0) + 1
 
-    total_tokens = len(premise_bigrams) + len(hypothesis_bigrams)
+    total_tokens = len(combined)
     for token in custom_features:
         # we can scale the feature by multiplying the following two scales
         # intuition: we want the weight of a token to be maximum when it appears in the fewest number of sentences and
         # it appears as few times as possible whenever it appears in a sentence. This is because the more unique a token,
         # the more it can help in distinguishing the sentences.
         sentence_frequency = np.log(
-            2 / (int(token in premise) + int(token in hypothesis) + 1)
+            2
+            / (int(token in premise_bigrams) + int(token in hypothesis_bigrams) + 1e-3)
         )
-        # +1 is added to avoid division by zero
-        token_frequency = np.log(
-            (total_tokens) / (combined.count(token) + 1e-3)
-        )  # +1e-3 is added to avoid division by zero
+        token_frequency = np.log(total_tokens / (custom_features[token] + 1e-3))
         custom_features[token] *= sentence_frequency * token_frequency
     return custom_features
 
