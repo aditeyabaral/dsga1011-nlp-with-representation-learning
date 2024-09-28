@@ -23,16 +23,16 @@ class DummyScheduler:
     def step(self):
         None
 
+
 def clones(module, N):
     "Produce N identical layers."
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
+
 def subsequent_mask(size):
     "Mask out subsequent positions."
     attn_shape = (1, size, size)
-    subsequent_mask = torch.triu(torch.ones(attn_shape), diagonal=1).type(
-        torch.uint8
-    )
+    subsequent_mask = torch.triu(torch.ones(attn_shape), diagonal=1).type(torch.uint8)
     return subsequent_mask == 0
 
 
@@ -72,7 +72,6 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-
 def greedy_decode(model, src, src_mask, max_len, start_symbol):
     memory = model.encode(src, src_mask)
     ys = torch.zeros(1, 1).fill_(start_symbol).type_as(src.data)
@@ -91,7 +90,7 @@ def greedy_decode(model, src, src_mask, max_len, start_symbol):
 
 def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, end_idx):
     # Your code here
-        
+    pass
 
 
 def collate_batch(
@@ -108,8 +107,8 @@ def collate_batch(
     eos_id = torch.tensor([1], device=device)  # </s> token id
     src_list, tgt_list = [], []
     for s in batch:
-        _src = s['de']
-        _tgt = s['en']
+        _src = s["de"]
+        _tgt = s["en"]
         processed_src = torch.cat(
             [
                 bs_id,
@@ -160,10 +159,10 @@ def collate_batch(
 
 def remove_start_end_tokens(sent):
 
-    if sent.startswith('<s>'):
+    if sent.startswith("<s>"):
         sent = sent[3:]
 
-    if sent.endswith('</s>'):
+    if sent.endswith("</s>"):
         sent = sent[:-4]
 
     return sent
@@ -177,4 +176,3 @@ def compute_corpus_level_bleu(refs, hyps):
     bleu = sacrebleu.corpus_bleu(hyps, [refs])
 
     return bleu.score
-

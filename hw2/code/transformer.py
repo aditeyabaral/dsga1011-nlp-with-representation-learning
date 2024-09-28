@@ -27,9 +27,8 @@ class EncoderDecoder(nn.Module):
 
     def decode(self, memory, src_mask, tgt, tgt_mask):
         return self.decoder(self.tgt_embed(tgt), memory, src_mask, tgt_mask)
-    
-    
-    
+
+
 class Encoder(nn.Module):
     "Core encoder is a stack of N layers"
 
@@ -43,9 +42,8 @@ class Encoder(nn.Module):
         for layer in self.layers:
             x = layer(x, mask)
         return self.norm(x)
-    
 
-    
+
 class Decoder(nn.Module):
     "Generic N layer decoder with masking."
 
@@ -57,4 +55,4 @@ class Decoder(nn.Module):
     def forward(self, x, memory, src_mask, tgt_mask):
         for layer in self.layers:
             x = layer(x, memory, src_mask, tgt_mask)
-        return self.norm(x)    
+        return self.norm(x)

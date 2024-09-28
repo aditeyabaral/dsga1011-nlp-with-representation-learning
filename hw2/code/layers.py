@@ -18,8 +18,8 @@ class LayerNorm(nn.Module):
         mean = x.mean(-1, keepdim=True)
         std = x.std(-1, keepdim=True)
         return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
-    
-    
+
+
 class SublayerConnection(nn.Module):
     """
     A residual connection (https://arxiv.org/abs/1512.03385) followed by a layer norm.
@@ -34,8 +34,8 @@ class SublayerConnection(nn.Module):
     def forward(self, x, sublayer):
         "Apply residual connection to any sublayer with the same size."
         return x + self.dropout(sublayer(self.norm(x)))
-    
-    
+
+
 class EncoderLayer(nn.Module):
     "Encoder is made up of self-attention and feed forward (defined below)"
 
@@ -50,8 +50,8 @@ class EncoderLayer(nn.Module):
         "Follow Figure 1 (left) for connections."
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))
         return self.sublayer[1](x, self.feed_forward)
-    
-    
+
+
 class DecoderLayer(nn.Module):
     "Decoder is made of self-attn, src-attn, and feed forward (defined below)"
 
@@ -68,21 +68,58 @@ class DecoderLayer(nn.Module):
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, tgt_mask))
         x = self.sublayer[1](x, lambda x: self.src_attn(x, m, m, src_mask))
         return self.sublayer[2](x, self.feed_forward)
-    
-    
+
+
 def attention(query, key, value, mask=None, dropout=None):
-    # Your code here
+    d_k = query.size(-1)
+    attn_weights = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+    if mask is not None:
+        attn_weights = attn_weights.masked_fill(mask.unsqueeze(1) == 0, float("-inf"))
+    if dropout is not None:
+        attn_weights = torch.dropout(attn_weights, dropout, train=True)
+    attn_weights = torch.softmax(attn_weights, dim=-1)
+    return attn_weights @ value, attn_weights
 
 
 class MultiHeadedAttention(nn.Module):
     def __init__(self, h, d_model, dropout=0.1):
-        # Your code here
+        super(MultiHeadedAttention, self).__init__()
+        assert d_model % h == 0
+        self.d_k = d_model // h
+        self.h = h
+
+        self.query_projection = nn.Linear(d_model, d_model)
+        self.key_projection = nn.Linear(d_model, d_model)
+        self.value_projection = nn.Linear(d_model, d_model)
+        self.output = nn.Linear(d_model, d_model)
+        self.dropout = dropout
 
     def forward(self, query, key, value, mask=None):
-        # Your code here
-    
-    
-    
+        batch_size = query.size(0)
+        if mask is not None:
+            mask = mask.unsqueeze(1)
+
+        query = (
+            self.query_projection(query)
+            .view(batch_size, -1, self.h, self.d_k)
+            .transpose(1, 2)
+        )
+        key = (
+            self.key_projection(key)
+            .view(batch_size, -1, self.h, self.d_k)
+            .transpose(1, 2)
+        )
+        value = (
+            self.value_projection(value)
+            .view(batch_size, -1, self.h, self.d_k)
+            .transpose(1, 2)
+        )
+
+        x, self.attn = attention(query, key, value, mask=mask, dropout=self.dropout)
+        x = x.transpose(1, 2).contiguous().view(batch_size, -1, self.h * self.d_k)
+        return self.output(x)
+
+
 class PositionwiseFeedForward(nn.Module):
     "Implements FFN equation."
 
@@ -94,8 +131,8 @@ class PositionwiseFeedForward(nn.Module):
 
     def forward(self, x):
         return self.w_2(self.dropout(self.w_1(x).relu()))
-    
-    
+
+
 class Embeddings(nn.Module):
     def __init__(self, d_model, vocab):
         super(Embeddings, self).__init__()
@@ -104,8 +141,8 @@ class Embeddings(nn.Module):
 
     def forward(self, x):
         return self.lut(x) * math.sqrt(self.d_model)
-    
-    
+
+
 class Generator(nn.Module):
     "Define standard linear + softmax generation step."
 
@@ -116,7 +153,6 @@ class Generator(nn.Module):
     def forward(self, x):
         return log_softmax(self.proj(x), dim=-1)
 
-    
 
 class LabelSmoothing(nn.Module):
     "Implement label smoothing."
@@ -140,6 +176,4 @@ class LabelSmoothing(nn.Module):
         if mask.dim() > 0:
             true_dist.index_fill_(0, mask.squeeze(), 0.0)
         self.true_dist = true_dist
-        return self.criterion(x, true_dist.clone().detach())    
-
-    
+        return self.criterion(x, true_dist.clone().detach())
