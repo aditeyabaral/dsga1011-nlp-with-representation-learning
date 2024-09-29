@@ -4,4 +4,6 @@ __pycache__/
 __MACOSX/
 .DS_Store/
 
+hw2/code/data/
 *.zip
+*.pt

@@ -72,13 +72,13 @@ class DecoderLayer(nn.Module):
 
 def attention(query, key, value, mask=None, dropout=None):
     d_k = query.size(-1)
-    attn_weights = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+    attn_scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
     if mask is not None:
-        attn_weights = attn_weights.masked_fill(mask.unsqueeze(1) == 0, float("-inf"))
+        attn_scores = attn_scores.masked_fill(mask.unsqueeze(1) == 0, -1e9)
+    attn_weights = torch.softmax(attn_scores, dim=-1)
     if dropout is not None:
         attn_weights = torch.dropout(attn_weights, dropout, train=True)
-    attn_weights = torch.softmax(attn_weights, dim=-1)
-    return attn_weights @ value, attn_weights
+    return torch.matmul(attn_weights, value), attn_weights
 
 
 class MultiHeadedAttention(nn.Module):
@@ -86,38 +86,26 @@ class MultiHeadedAttention(nn.Module):
         super(MultiHeadedAttention, self).__init__()
         assert d_model % h == 0
         self.d_k = d_model // h
-        self.h = h
-
-        self.query_projection = nn.Linear(d_model, d_model)
-        self.key_projection = nn.Linear(d_model, d_model)
-        self.value_projection = nn.Linear(d_model, d_model)
-        self.output = nn.Linear(d_model, d_model)
+        self.num_heads = h
         self.dropout = dropout
+        self.linears = nn.ModuleList([nn.Linear(d_model, d_model) for _ in range(4)])
+        self.attn = None
 
     def forward(self, query, key, value, mask=None):
         batch_size = query.size(0)
-        if mask is not None:
-            mask = mask.unsqueeze(1)
-
-        query = (
-            self.query_projection(query)
-            .view(batch_size, -1, self.h, self.d_k)
+        query, key, value = [
+            linear_projection(x)
+            .view(batch_size, -1, self.num_heads, self.d_k)
             .transpose(1, 2)
-        )
-        key = (
-            self.key_projection(key)
-            .view(batch_size, -1, self.h, self.d_k)
-            .transpose(1, 2)
-        )
-        value = (
-            self.value_projection(value)
-            .view(batch_size, -1, self.h, self.d_k)
-            .transpose(1, 2)
-        )
-
+            for linear_projection, x in zip(self.linears, (query, key, value))
+        ]
         x, self.attn = attention(query, key, value, mask=mask, dropout=self.dropout)
-        x = x.transpose(1, 2).contiguous().view(batch_size, -1, self.h * self.d_k)
-        return self.output(x)
+        x = (
+            x.transpose(1, 2)
+            .contiguous()
+            .view(batch_size, -1, self.num_heads * self.d_k)
+        )
+        return self.linears[-1](x)
 
 
 class PositionwiseFeedForward(nn.Module):
