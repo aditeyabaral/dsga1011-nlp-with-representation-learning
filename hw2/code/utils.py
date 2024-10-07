@@ -89,8 +89,56 @@ def greedy_decode(model, src, src_mask, max_len, start_symbol):
 
 
 def beam_search_decode(model, src, src_mask, max_len, start_symbol, beam_size, end_idx):
-    # Your code here
-    pass
+    """
+    Implement beam search decoding with 'beam_size' width
+    """
+    # TODO: Decode using the model, memory, and source mask
+    memory = model.encode(src, src_mask)
+    ys = torch.zeros(1, 1).fill_(start_symbol).type_as(src.data)
+    beam_scores = torch.zeros(1, device=src.device)  # Initialize scores for each beam
+
+    # List to hold beams, starting with initial sequence
+    beams = [(ys, beam_scores)]
+
+    # Expand encoder output memory for each beam
+    memory = memory.expand(beam_size, *memory.shape[1:])
+
+    for i in range(max_len - 1):
+        all_candidates = []
+
+        # Iterate over each beam sequence and its score
+        for ys, score in beams:
+            # Decode step
+            out = model.decode(
+                memory[: ys.size(0)],
+                src_mask,
+                ys,
+                subsequent_mask(ys.size(1)).type_as(src.data),
+            )
+            prob = model.generator(out[:, -1])  # Get probabilities for the next token
+
+            # Add current beam score and log-probabilities for new tokens
+            log_probs = torch.log_softmax(prob, dim=1)
+            top_log_probs, top_tokens = log_probs.topk(
+                beam_size, dim=1
+            )  # Get top-k tokens
+            top_log_probs += score  # Update scores with previous scores
+
+            # Append candidates for the next beam state
+            for j in range(beam_size):
+                new_seq = torch.cat([ys, top_tokens[:, j].view(1, -1)], dim=1)
+                new_score = top_log_probs[0, j]
+                all_candidates.append((new_seq, new_score))
+
+        # Sort all candidates by score and keep the top ⁠ beam_size ⁠
+        beams = sorted(all_candidates, key=lambda x: x[1], reverse=True)[:beam_size]
+
+        # Check if all beams have generated the end token
+        if all(beam[0][0, -1].item() == end_idx for beam in beams):
+            break
+
+    # Return the best sequence (highest score)
+    return beams[0][0]
 
 
 def collate_batch(
