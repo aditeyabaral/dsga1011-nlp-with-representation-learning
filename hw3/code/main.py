@@ -48,6 +48,7 @@ def do_train(args, model, train_dataloader, save_dir="./out"):
     # You can use progress_bar.update(1) to see the progress during training
     # You can refer to the pytorch tutorial covered in class for reference
 
+    total_training_examples = len(train_dataloader)
     training_steps_per_loss = 100
     for epoch in range(1, num_epochs+1):
         running_loss = 0.0
@@ -69,7 +70,7 @@ def do_train(args, model, train_dataloader, save_dir="./out"):
             if progress_bar.n % training_steps_per_loss == 0:
                 print(f"Epoch: {epoch}, Step: {progress_bar.n}, Loss: {running_loss / training_steps_per_loss}")
 
-        print(f"Epoch: {epoch}, Loss: {epoch_loss / len(train_dataloader)}")
+        print(f"Epoch: {epoch}, Loss: {epoch_loss / total_training_examples}")
         model.save_pretrained(f"{save_dir}_checkpoint_{epoch}")
 
     ##### YOUR CODE ENDS HERE ######
