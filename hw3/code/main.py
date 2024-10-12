@@ -49,7 +49,7 @@ def do_train(args, model, train_dataloader, save_dir="./out"):
     # You can refer to the pytorch tutorial covered in class for reference
 
     total_training_examples = len(train_dataloader)
-    training_steps_per_loss = 100
+    training_steps_per_loss = 500
     for epoch in range(1, num_epochs+1):
         running_loss = 0.0
         epoch_loss = 0.0
@@ -71,7 +71,7 @@ def do_train(args, model, train_dataloader, save_dir="./out"):
                 print(f"Epoch: {epoch}, Step: {progress_bar.n}, Loss: {running_loss / training_steps_per_loss}")
 
         print(f"Epoch: {epoch}, Loss: {epoch_loss / total_training_examples}")
-        model.save_pretrained(f"{save_dir}_checkpoint_{epoch}")
+        #   model.save_pretrained(f"{save_dir}_checkpoint_{epoch}")
 
     ##### YOUR CODE ENDS HERE ######
 
