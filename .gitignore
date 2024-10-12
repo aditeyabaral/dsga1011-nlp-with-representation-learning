@@ -6,5 +6,8 @@ __MACOSX/
 
 hw2/code/data/
 hw2/data/
+
+hw3/code/out/
+
 *.zip
 *.pt
