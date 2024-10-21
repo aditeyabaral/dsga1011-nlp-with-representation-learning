@@ -82,7 +82,7 @@ def custom_transform(example):
         if random.random() > 0.5:
             words[i] = word.lower()
 
-        # Replace some words with synonyms only if it is a noun
+        # Replace some words with synonyms only if it is a noun with more than 3 characters
         if (
             random.random() > 0.5
             and len(word) > 3
@@ -111,6 +111,7 @@ def custom_transform(example):
                     if to_upper:
                         sampled_letter = sampled_letter.upper()
                     new_word += sampled_letter
+                    current_typos += 1
                 else:
                     new_word += letter
             words[i] = new_word
