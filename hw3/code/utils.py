@@ -85,6 +85,7 @@ def custom_transform(example):
         # Replace some words with synonyms only if it is a noun
         if (
             random.random() > 0.5
+            and len(word) > 3
             and wordnet.synsets(word)
             and wordnet.synsets(word)[0].pos() == "n"
         ):
@@ -97,7 +98,7 @@ def custom_transform(example):
         if random.random() > 0.5:
             new_word = ""
             for letter in word:
-                if random.random() > 0.8:
+                if random.random() > 0.85:
                     to_upper = False
                     if letter.isupper():
                         letter = letter.lower()
