@@ -7,7 +7,8 @@ __MACOSX/
 hw2/code/data/
 hw2/data/
 
-hw3/code/out*/
+config.json
+model.safetensors
 
 *.zip
 *.pt
