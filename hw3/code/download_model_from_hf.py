@@ -22,5 +22,8 @@ args = parser.parse_args()
 
 
 model = AutoModelForSequenceClassification.from_pretrained(
-    args.model_name, cache_dir=args.model_dir
+    args.model_name,
+    token="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",
 )
+
+model.save_pretrained(args.model_dir)
