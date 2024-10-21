@@ -97,7 +97,7 @@ def custom_transform(example):
         # Replace some letters with typos
         if random.random() > 0.5:
             new_word = ""
-            total_typos = 0.2 * len(word)
+            total_typos = 0.5 * len(word)
             current_typos = 0
             for letter in word:
                 if current_typos < total_typos and random.random() > 0.85:
