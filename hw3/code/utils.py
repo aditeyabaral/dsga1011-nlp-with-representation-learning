@@ -82,8 +82,12 @@ def custom_transform(example):
         if random.random() > 0.5:
             words[i] = word.lower()
 
-        # Replace some words with synonyms
-        if random.random() > 0.5:
+        # Replace some words with synonyms only if it is a noun
+        if (
+            random.random() > 0.5
+            and wordnet.synsets(word)
+            and wordnet.synsets(word)[0].pos() == "n"
+        ):
             syns = wordnet.synsets(word)
             if len(syns) > 0:
                 syn = syns[0].lemmas()[0].name()
