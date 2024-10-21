@@ -44,7 +44,71 @@ def custom_transform(example):
 
     # You should update example["text"] using your transformation
 
-    raise NotImplementedError
+    # A mappping of qwerty keyboard keys to their neighbors
+    qwerty_neighbors = {
+        "a": ["q", "w", "s", "z"],
+        "b": ["v", "g", "h", "n"],
+        "c": ["x", "d", "f", "v"],
+        "d": ["s", "e", "r", "f", "x", "c"],
+        "e": ["w", "s", "d", "r"],
+        "f": ["d", "r", "t", "g", "v", "c"],
+        "g": ["f", "t", "y", "h", "v", "b"],
+        "h": ["g", "y", "u", "j", "b", "n"],
+        "i": ["u", "j", "k", "o"],
+        "j": ["h", "u", "i", "k", "n", "m"],
+        "k": ["j", "i", "o", "l", "m"],
+        "l": ["k", "o", "p"],
+        "m": ["n", "j", "k"],
+        "n": ["b", "h", "j", "m"],
+        "o": ["i", "k", "l", "p"],
+        "p": ["o", "l"],
+        "q": ["a", "w"],
+        "r": ["e", "d", "f", "t"],
+        "s": ["a", "w", "e", "d", "x", "z"],
+        "t": ["r", "f", "g", "y"],
+        "u": ["y", "h", "j", "i"],
+        "v": ["c", "f", "g", "b"],
+        "w": ["q", "a", "s", "e"],
+        "x": ["z", "s", "d", "c"],
+        "y": ["t", "g", "h", "u"],
+        "z": ["a", "s", "x"],
+    }
+
+    original_text = example["text"]
+    words = word_tokenize(original_text)
+
+    for i, word in enumerate(words):
+        # Lowercase the word
+        if random.random() > 0.5:
+            words[i] = word.lower()
+
+        # Replace some words with synonyms
+        if random.random() > 0.5:
+            syns = wordnet.synsets(word)
+            if len(syns) > 0:
+                syn = syns[0].lemmas()[0].name()
+                words[i] = syn
+
+        # Replace some letters with typos
+        if random.random() > 0.5:
+            new_word = ""
+            for letter in word:
+                if random.random() > 0.8:
+                    to_upper = False
+                    if letter.isupper():
+                        letter = letter.lower()
+                        to_upper = True
+                    sampled_letter = random.choice(
+                        qwerty_neighbors.get(letter, [letter])
+                    )
+                    if to_upper:
+                        sampled_letter = sampled_letter.upper()
+                    new_word += sampled_letter
+                else:
+                    new_word += letter
+            words[i] = new_word
+
+    example["text"] = TreebankWordDetokenizer().detokenize(words)
 
     ##### YOUR CODE ENDS HERE ######
 

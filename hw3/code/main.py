@@ -50,7 +50,7 @@ def do_train(args, model, train_dataloader, save_dir="./out"):
 
     total_training_examples = len(train_dataloader)
     training_steps_per_loss = 100
-    for epoch in range(1, num_epochs+1):
+    for epoch in range(1, num_epochs + 1):
         running_loss = 0.0
         epoch_loss = 0.0
         for batch in train_dataloader:
@@ -68,7 +68,9 @@ def do_train(args, model, train_dataloader, save_dir="./out"):
             progress_bar.update(1)
 
             if progress_bar.n % training_steps_per_loss == 0:
-                print(f"Epoch: {epoch}, Step: {progress_bar.n}, Loss: {running_loss / training_steps_per_loss}")
+                print(
+                    f"Epoch: {epoch}, Step: {progress_bar.n}, Loss: {running_loss / training_steps_per_loss}"
+                )
 
         print(f"Epoch: {epoch}, Loss: {epoch_loss / total_training_examples}")
         model.save_pretrained(f"{save_dir}_checkpoint_{epoch}")
