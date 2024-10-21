@@ -100,7 +100,7 @@ def custom_transform(example):
             total_typos = 0.5 * len(word)
             current_typos = 0
             for letter in word:
-                if current_typos < total_typos and random.random() > 0.85:
+                if current_typos < total_typos and random.random() > 0.75:
                     to_upper = False
                     if letter.isupper():
                         letter = letter.lower()
