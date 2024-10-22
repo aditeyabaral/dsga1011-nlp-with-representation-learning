@@ -9,6 +9,9 @@ hw2/data/
 
 hw3/code/out_*/
 models/
+config.json
+model.safetensors
+>>>>>>> d08fec300c29eb2812e8feb948c440b988f9f7a1
 
 *.zip
 *.pt

@@ -120,7 +120,41 @@ def create_augmented_dataloader(args, dataset):
     # dataloader will be for the original training split augmented with 5k random transformed examples from the training set.
     # You may find it helpful to see how the dataloader was created at other place in this code.
 
-    raise NotImplementedError
+    # Sample 5000 examples from the training set and apply the custom transformation
+    sampled_dataset = dataset["train"].shuffle(seed=42).select(range(5000))
+
+    # Apply the custom transformation and tokenize the sampled dataset
+    transformed_sampled_dataset = sampled_dataset.map(
+        custom_transform, load_from_cache_file=False
+    )
+    transformed_tokenized_sampled_dataset = transformed_sampled_dataset.map(
+        tokenize_function, batched=True, load_from_cache_file=False
+    )
+    transformed_tokenized_sampled_dataset = (
+        transformed_tokenized_sampled_dataset.remove_columns(["text"])
+    )
+    transformed_tokenized_sampled_dataset = (
+        transformed_tokenized_sampled_dataset.rename_column("label", "labels")
+    )
+    transformed_tokenized_sampled_dataset.set_format("torch")
+
+    # Tokenize the original dataset
+    tokenized_original_dataset = dataset["train"].map(
+        tokenize_function, batched=True, load_from_cache_file=False
+    )
+    tokenized_original_dataset = tokenized_original_dataset.remove_columns(["text"])
+    tokenized_original_dataset = tokenized_original_dataset.rename_column("label", "labels")
+    tokenized_original_dataset.set_format("torch")
+
+    # Concatenate the original and transformed datasets
+    concatenated_dataset = torch.utils.data.ConcatDataset(
+        [tokenized_original_dataset, transformed_tokenized_sampled_dataset]
+    )
+
+    # Create a dataloader for the concatenated dataset
+    train_dataloader = DataLoader(
+        concatenated_dataset, shuffle=True, batch_size=args.batch_size
+    )
 
     ##### YOUR CODE ENDS HERE ######
 
