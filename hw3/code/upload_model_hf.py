@@ -2,7 +2,6 @@ import argparse
 from transformers import AutoModelForSequenceClassification
 
 parser = argparse.ArgumentParser("Upload model to HuggingFace Hub")
-
 parser.add_argument(
     "--model-dir",
     "-d",
