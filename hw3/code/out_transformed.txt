@@ -1,1 +1,1 @@
-outputs/out_transformed_default.txt
+outputs/out_transformed.txt
