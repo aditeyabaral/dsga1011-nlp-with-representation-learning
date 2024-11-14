@@ -1,5 +1,4 @@
 from ete3 import Tree
-import matplotlib.pyplot as plt
 
 
 class Node:
