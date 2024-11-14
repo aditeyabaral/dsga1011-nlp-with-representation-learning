@@ -143,7 +143,9 @@ def create_augmented_dataloader(args, dataset):
         tokenize_function, batched=True, load_from_cache_file=False
     )
     tokenized_original_dataset = tokenized_original_dataset.remove_columns(["text"])
-    tokenized_original_dataset = tokenized_original_dataset.rename_column("label", "labels")
+    tokenized_original_dataset = tokenized_original_dataset.rename_column(
+        "label", "labels"
+    )
     tokenized_original_dataset.set_format("torch")
 
     # Concatenate the original and transformed datasets
